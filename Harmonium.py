@@ -1,8 +1,8 @@
 """
 File Name: Harmonium.py
-Description: This is the main Python file calculating the energy of harmonium with modulator function G.
+Description: This is the main Python file calculating the energy and wave function of harmonium with modulator function G.
 Author: Wenqing Yao, PKU
-Last edited: 2024-09-02
+Last edited: 2024-09-05
 Compiler Environment: python 3
 """
 
@@ -10,6 +10,19 @@ import mpmath as mp
 import numpy as np
 
 one = mp.mpf('1')
+
+
+def square_normalize(r_scan, f_calc, equidistance=True):
+    r_scan, f_calc = np.array(r_scan), np.array(f_calc)
+    f2_calc = f_calc ** 2 * r_scan ** 2
+    norm_coef = 0
+    if equidistance:
+        dr = r_scan[1] - r_scan[0]
+        norm_coef = (sum(f2_calc) - (f2_calc[0] + f2_calc[-1]) / 2) * dr
+    else:
+        for i in range(len(r_scan) - 1):
+            norm_coef += (f2_calc[i] + f2_calc[i + 1]) / 2 * (r_scan[i + 1] - r_scan[i])
+    return 1 / mp.sqrt(norm_coef)
 
 
 class HarmonicHelium:
@@ -134,6 +147,38 @@ class HarmonicHelium:
         self.gamma = gamma_iter[-1]
 
         return gamma_iter[-1]
+
+    def calc_G(self, gamma, cut, x):
+        x = mp.mpf(str(x))
+        Gk = self.power_series(gamma, cut)[0]
+        ans = Gk[0]
+        for i in range(1, len(Gk)):
+            ans += Gk[i] * mp.power(x, i)
+        return ans
+
+    def calc_phi(self, gamma, cut, r):
+        r = mp.mpf(str(r))
+        x = r / (r + self.c)
+        G = self.calc_G(gamma, cut, x)
+        ans = mp.power(r, self.l) * mp.power(1 + r / self.c, gamma) * mp.exp(-r ** 2 / 4) * G
+        return ans
+
+    def calc_deriv_phi(self, gamma, cut, r):
+        r = mp.mpf(str(r))
+        dr = mp.mpf(1e-20)
+        y1 = self.calc_phi(gamma, cut, r - dr)
+        y2 = self.calc_phi(gamma, cut, r)
+        y3 = self.calc_phi(gamma, cut, r + dr)
+
+        d1_G = (y3 - y1) / dr / 2
+        d2_G = (y3 + y1 - 2 * y2) / dr ** 2
+        return d1_G, d2_G
+
+    def calc_residual(self, gamma, cut, r):
+        phi = self.calc_phi(gamma, cut, r)
+        d1_phi, d2_phi = self.calc_deriv_phi(gamma, cut, r)
+        residual = -d2_phi - 2 / r * d1_phi + (r ** 2 / 4 + self.lbd / r - gamma - self.l - mp.mpf('1.5')) * phi
+        return residual
 
 
 def test():
