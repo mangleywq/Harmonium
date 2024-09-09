@@ -7,7 +7,7 @@ cut = 500
 lbd = mp.mpf('1')
 
 begin = HarmonicHelium(nr, l, lbd, 2)
-gamma = begin.solve_energy(100, '3')
+gamma = begin.solve_energy(100, '1')
 print(gamma)
 
 
